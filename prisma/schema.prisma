@@ -1,0 +1,357 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ------------------------------------------
+// 1. User Model
+// ------------------------------------------
+model User {
+  id            BigInt    @id @default(autoincrement())
+  username      String    @unique @db.VarChar(50)
+  email         String    @unique @db.VarChar(255)
+  passwordHash  String    @map("password_hash") @db.VarChar(255)
+  xp            Int       @default(0)
+  coins         Int       @default(0)
+  currentStreak Int       @default(0) @map("current_streak")
+  longestStreak Int       @default(0) @map("longest_streak")
+  lastActiveAt  DateTime? @map("last_active_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  // Relationships
+  settings               UserSettings?
+  subjects               Subject[]
+  studySessions          StudySession[]
+  createdGroups          Group[]            @relation("GroupCreator")
+  groupMemberships       GroupMember[]
+  friends1               Friend[]           @relation("User1")
+  friends2               Friend[]           @relation("User2")
+  sentFriendRequests     FriendRequest[]    @relation("Sender")
+  receivedFriendRequests FriendRequest[]    @relation("Receiver")
+  notifications          Notification[]
+  achievements           UserAchievement[]
+  rewards                UserReward[]
+  mailLogs               MailLog[]
+  dailySummaries         UserDailySummary[]
+
+  @@map("users")
+}
+
+// ------------------------------------------
+// 2. UserSettings Model (1:1 with User)
+// ------------------------------------------
+model UserSettings {
+  userId                        BigInt   @id @map("user_id")
+  dailyStudyGoalSeconds         Int      @default(7200) @map("daily_study_goal_seconds")
+  isEmailNotificationsEnabled   Boolean  @default(true) @map("is_email_notifications_enabled")
+  isPushNotificationsEnabled    Boolean  @default(true) @map("is_push_notifications_enabled")
+  theme                         String   @default("dark") @db.VarChar(20)
+  createdAt                     DateTime @default(now()) @map("created_at")
+  updatedAt                     DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_settings")
+}
+
+// ------------------------------------------
+// 3. Subject Model
+// ------------------------------------------
+model Subject {
+  id        BigInt   @id @default(autoincrement())
+  userId    BigInt   @map("user_id")
+  name      String   @db.VarChar(100)
+  colorCode String   @default("#3B82F6") @map("color_code") @db.Char(7)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  studySessions  StudySession[]
+  dailySummaries UserDailySummary[]
+
+  @@unique([userId, name], name: "uq_user_subject_name")
+  @@map("subjects")
+}
+
+// ------------------------------------------
+// 4. StudySession Model
+// ------------------------------------------
+model StudySession {
+  id              BigInt         @id @default(autoincrement())
+  userId          BigInt         @map("user_id")
+  subjectId       BigInt         @map("subject_id")
+  startTime       DateTime       @map("start_time")
+  endTime         DateTime?      @map("end_time")
+  durationSeconds Int?           @map("duration_seconds")
+  status          SessionStatus  @default(ACTIVE)
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+
+  @@map("study_sessions")
+}
+
+enum SessionStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+}
+
+// ------------------------------------------
+// 5. Group Model
+// ------------------------------------------
+model Group {
+  id                  BigInt   @id @default(autoincrement())
+  name                String   @db.VarChar(100)
+  description         String?  @db.Text
+  creatorId           BigInt   @map("creator_id")
+  inviteCode          String   @unique @map("invite_code") @db.VarChar(10)
+  maxMembers          Int      @default(50) @map("max_members")
+  currentMembersCount Int      @default(1) @map("current_members_count")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  creator User          @relation("GroupCreator", fields: [creatorId], references: [id], onDelete: Restrict)
+  members GroupMember[]
+
+  @@map("groups")
+}
+
+// ------------------------------------------
+// 6. GroupMember Model
+// ------------------------------------------
+model GroupMember {
+  id      BigInt    @id @default(autoincrement())
+  groupId BigInt    @map("group_id")
+  userId  BigInt    @map("user_id")
+  role    GroupRole @default(MEMBER)
+  joinedAt DateTime @default(now()) @map("joined_at")
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId], name: "uq_group_member")
+  @@map("group_members")
+}
+
+enum GroupRole {
+  LEADER
+  MEMBER
+}
+
+// ------------------------------------------
+// 7. Friend Model (Junction for self-reference)
+// ------------------------------------------
+model Friend {
+  userId1       BigInt   @map("user_id_1")
+  userId2       BigInt   @map("user_id_2")
+  establishedAt DateTime @default(now()) @map("established_at")
+
+  user1 User @relation("User1", fields: [userId1], references: [id], onDelete: Cascade)
+  user2 User @relation("User2", fields: [userId2], references: [id], onDelete: Cascade)
+
+  @@id([userId1, userId2])
+  @@map("friends")
+}
+
+// ------------------------------------------
+// 8. FriendRequest Model
+// ------------------------------------------
+model FriendRequest {
+  id         BigInt        @id @default(autoincrement())
+  senderId   BigInt        @map("sender_id")
+  receiverId BigInt        @map("receiver_id")
+  status     RequestStatus @default(PENDING)
+  sentAt     DateTime      @default(now()) @map("sent_at")
+  updatedAt  DateTime      @updatedAt @map("updated_at")
+
+  sender   User @relation("Sender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User @relation("Receiver", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@unique([senderId, receiverId], name: "uq_sender_receiver")
+  @@map("friend_requests")
+}
+
+enum RequestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+// ------------------------------------------
+// 9. Notification Model
+// ------------------------------------------
+model Notification {
+  id        BigInt   @id @default(autoincrement())
+  userId    BigInt   @map("user_id")
+  title     String   @db.VarChar(150)
+  message   String   @db.Text
+  type      String   @db.VarChar(50)
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+// ------------------------------------------
+// 10. Achievement Model
+// ------------------------------------------
+model Achievement {
+  id          BigInt   @id @default(autoincrement())
+  code        String   @unique @db.VarChar(50)
+  name        String   @db.VarChar(100)
+  description String   @db.VarChar(255)
+  xpReward    Int      @default(0) @map("xp_reward")
+  coinReward  Int      @default(0) @map("coin_reward")
+  iconUrl     String?  @map("icon_url") @db.VarChar(255)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  earners UserAchievement[]
+
+  @@map("achievements")
+}
+
+// ------------------------------------------
+// 11. UserAchievement Model (M:N Link)
+// ------------------------------------------
+model UserAchievement {
+  userId        BigInt   @map("user_id")
+  achievementId BigInt   @map("achievement_id")
+  unlockedAt    DateTime @default(now()) @map("unlocked_at")
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  @@id([userId, achievementId])
+  @@map("user_achievements")
+}
+
+// ------------------------------------------
+// 12. Reward Model
+// ------------------------------------------
+model Reward {
+  id                 BigInt     @id @default(autoincrement())
+  name               String     @db.VarChar(100)
+  description        String?    @db.Text
+  costCoins          Int        @map("cost_coins")
+  itemType           RewardType @map("item_type")
+  resourceIdentifier String     @map("resource_identifier") @db.VarChar(255)
+  createdAt          DateTime   @default(now()) @map("created_at")
+  updatedAt          DateTime   @updatedAt @map("updated_at")
+
+  users         UserReward[]
+  ambientSounds AmbientSound[]
+
+  @@map("rewards")
+}
+
+enum RewardType {
+  THEME
+  AVATAR_FRAME
+  SOUND
+}
+
+// ------------------------------------------
+// 13. UserReward Model (M:N Link)
+// ------------------------------------------
+model UserReward {
+  id          BigInt   @id @default(autoincrement())
+  userId      BigInt   @map("user_id")
+  rewardId    BigInt   @map("reward_id")
+  purchasedAt DateTime @default(now()) @map("purchased_at")
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reward Reward @relation(fields: [rewardId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, rewardId], name: "uq_user_reward")
+  @@map("user_rewards")
+}
+
+// ------------------------------------------
+// 14. AmbientSound Model
+// ------------------------------------------
+model AmbientSound {
+  id        BigInt   @id @default(autoincrement())
+  name      String   @db.VarChar(100)
+  audioUrl  String   @map("audio_url") @db.VarChar(255)
+  isPremium Boolean  @default(false) @map("is_premium")
+  rewardId  BigInt?  @map("reward_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  reward Reward? @relation(fields: [rewardId], references: [id], onDelete: SetNull)
+
+  @@map("ambient_sounds")
+}
+
+// ------------------------------------------
+// 15. Quote Model
+// ------------------------------------------
+model Quote {
+  id        Int      @id @default(autoincrement())
+  content   String   @db.Text
+  author    String   @default("Unknown") @db.VarChar(100)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("quotes")
+}
+
+// ------------------------------------------
+// 16. MailLog Model
+// ------------------------------------------
+model MailLog {
+  id             BigInt     @id @default(autoincrement())
+  userId         BigInt?    @map("user_id")
+  recipientEmail String     @map("recipient_email") @db.VarChar(255)
+  subject        String     @db.VarChar(255)
+  templateName   String     @map("template_name") @db.VarChar(50)
+  status         MailStatus @default(PENDING)
+  errorMessage   String?    @map("error_message") @db.Text
+  sentAt         DateTime   @default(now()) @map("sent_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("mail_logs")
+}
+
+enum MailStatus {
+  SENT
+  FAILED
+  PENDING
+}
+
+// ------------------------------------------
+// 17. UserDailySummary Model (Analytics Roll-up)
+// ------------------------------------------
+model UserDailySummary {
+  id                   BigInt   @id @default(autoincrement())
+  userId               BigInt   @map("user_id")
+  subjectId            BigInt   @map("subject_id")
+  studyDate            DateTime @map("study_date") @db.Date
+  totalDurationSeconds Int      @default(0) @map("total_duration_seconds")
+  sessionsCount        Int      @default(0) @map("sessions_count")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, subjectId, studyDate], name: "uq_user_subject_date")
+  @@map("user_daily_summaries")
+}
