@@ -25,7 +25,7 @@ Edit `backend/.env` if your MySQL needs a password or you want your own `JWT_SEC
 
 ## Layout
 
-- `schema.sql`, `seed.sql` — tables `users`, `subjects`, `study_sessions`, view `v_subject_study_summary`, trigger `tr_validate_session`
+- `schema.sql`, `seed.sql` — tables `users`, `subjects`, `study_sessions`, `goals`, `tags`, `session_tags`, `audit_log`; views `v_subject_study_summary`, `v_tag_summary`; triggers for validation and auditing
 - `backend/` — Express + TypeScript API (JWT auth, raw SQL via `mysql2`)
 - `analytics/visualize.py` — per-user bar, donut and line charts, regenerated whenever sessions change
 - `frontend/` — React + Vite + Tailwind

@@ -6,7 +6,7 @@ This guide documents the theoretical and practical concepts implemented in the m
 
 ## 1. Minimal Relational Database Architecture (DBMS)
 
-The database was reduced from an over-engineered 9-table schema to a **clean, 3NF-compliant 3-table schema** designed to demonstrate all core syllabus requirements without distracting bloat.
+The database was reduced from an over-engineered 9-table schema to a **clean, 3NF-compliant schema (3 core tables + goals, tags, audit log)** designed to demonstrate all core syllabus requirements without distracting bloat.
 
 ### 1.1 Entity-Relationship (ER) Mapping
 
@@ -24,7 +24,22 @@ The database was reduced from an over-engineered 9-table schema to a **clean, 3N
 | :--- | :--- | :--- | :--- |
 | `users` | `id` (AUTO_INCREMENT) | None | `username UNIQUE`, `email UNIQUE`, `password_hash` (bcrypt), Atomic fields (1NF) |
 | `subjects` | `id` (AUTO_INCREMENT) | `user_id` &rarr; `users(id)` | `ON DELETE CASCADE`, Composite Unique `(user_id, name)` |
-| `study_sessions` | `id` (AUTO_INCREMENT) | `user_id` &rarr; `users(id)`, `subject_id` &rarr; `subjects(id)` | `ON DELETE CASCADE`, Domain Check `duration_minutes > 0` |
+| `study_sessions` | `id` (AUTO_INCREMENT) | `user_id` &rarr; `users(id)`, `subject_id` &rarr; `subjects(id)` | `ON DELETE CASCADE`, Domain Chec### 1.3 Extension Tables
+
+| Table | Purpose | Concepts |
+| :--- | :--- | :--- |
+| `goals` | Weekly target minutes per subject | `UNIQUE (user_id, subject_id)`, upsert via `ON DUPLICATE KEY UPDATE`, `CHECK > 0` |
+| `tags` + `session_tags` | Label sessions ("lab", "revision") | Many-to-many resolved by a junction table with composite PK `(session_id, tag_id)` |
+| `audit_log` | History of edited/deleted sessions | `AFTER UPDATE` / `AFTER DELETE` triggers using `OLD`/`NEW`; no FK on `session_id` because the row may be gone |
+
+Views: `v_subject_study_summary` (hours per subject) and `v_tag_summary` (hours per tag, joined through the junction table).
+Triggers: `tr_validate_session` (BEFORE INSERT), `tr_audit_session_update`, `tr_audit_session_delete`.
+
+The bar chart (`user_<id>_daily_study.png`) now compares the last 7 days per subject against each subject's weekly goal (`LEFT JOIN` of subjects, sessions and goals).
+
+---
+
+k `duration_minutes > 0` |
 
 ---
 

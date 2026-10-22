@@ -32,3 +32,12 @@ INSERT INTO study_sessions (id, user_id, subject_id, duration_minutes, session_d
 (12, 1, 4, 75,  DATE_SUB(CURDATE(), INTERVAL 1 DAY), 'Deadlock detection and Banker algorithm'),
 (13, 1, 1, 150, CURDATE(), 'Viva preparation & Schema documentation'),
 (14, 1, 2, 120, CURDATE(), 'Generated final charts for presentation');
+
+-- 4. Weekly goals (minutes)
+INSERT INTO goals (user_id, subject_id, weekly_target_minutes) VALUES
+(1, 1, 600), (1, 2, 420), (1, 3, 240), (1, 4, 240);
+
+-- 5. Tags and session labels
+INSERT INTO tags (id, user_id, name) VALUES (1, 1, 'revision'), (2, 1, 'lab'), (3, 1, 'viva');
+INSERT INTO session_tags (session_id, tag_id) VALUES
+(1, 1), (3, 1), (7, 2), (8, 2), (9, 2), (11, 1), (13, 3), (14, 2);

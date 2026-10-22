@@ -25,6 +25,7 @@ export interface StudySession {
   notes?: string;
   subject_name?: string;
   color_code?: string;
+  tags?: string[];
 }
 
 export interface SubjectSummary {
@@ -36,4 +37,29 @@ export interface SubjectSummary {
   total_sessions: number;
   total_minutes: number;
   total_hours: number;
+}
+
+export interface Goal {
+  subject_id: number;
+  subject_name: string;
+  color_code: string;
+  weekly_target_minutes: number | null;
+  week_minutes: number;
+}
+
+export interface TagSummary {
+  tag_id: number;
+  tag_name: string;
+  total_sessions: number;
+  total_minutes: number;
+}
+
+export interface AuditEntry {
+  id: number;
+  session_id: number;
+  action: 'UPDATE' | 'DELETE';
+  old_duration: number | null;
+  new_duration: number | null;
+  subject_name: string | null;
+  changed_at: string;
 }

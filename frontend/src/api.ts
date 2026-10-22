@@ -1,4 +1,4 @@
-import { User, Subject, StudySession, SubjectSummary } from './types';
+import { User, Subject, StudySession, SubjectSummary, Goal, TagSummary, AuditEntry } from './types';
 
 const API_BASE = '/api';
 const TOKEN_KEY = 'studysync_token';
@@ -29,6 +29,7 @@ type SessionInput = {
   durationMinutes: number;
   sessionDate: string;
   notes?: string;
+  tags?: string[];
 };
 
 export const api = {
@@ -53,6 +54,11 @@ export const api = {
 
   // Analytics
   getSummary: () => request<{ success: boolean; data: SubjectSummary[] }>('/summary'),
+  getTagSummary: () => request<{ success: boolean; data: TagSummary[] }>('/tag-summary'),
+  getGoals: () => request<{ success: boolean; data: Goal[] }>('/goals'),
+  setGoal: (subjectId: number, weeklyTargetMinutes: number) =>
+    request<{ success: boolean; error?: string }>(`/goals/${subjectId}`, 'PUT', { weeklyTargetMinutes }),
+  getAudit: () => request<{ success: boolean; data: AuditEntry[] }>('/audit'),
   refreshCharts: () => request('/charts/refresh', 'POST'),
 
   // Charts are per-user and need the auth header, so fetch as a blob URL

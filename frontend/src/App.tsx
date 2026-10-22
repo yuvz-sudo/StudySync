@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { api, getToken, setToken, UNAUTHORIZED_EVENT } from './api';
 import { Auth } from './Auth';
+import { Insights } from './Insights';
 import { Subject, StudySession, SubjectSummary, User } from './types';
 
 // Charts are per-user and need the auth header, so they are fetched as blobs
@@ -100,6 +101,8 @@ function Dashboard({ user, onLogout }: { user: User; onLogout: () => void }) {
     localDate()
   );
   const [manualNotes, setManualNotes] = useState<string>('');
+  const [manualTags, setManualTags] = useState<string>('');
+  const [timerTags, setTimerTags] = useState<string>('');
 
   // Add Subject Inline Modal
   const [showAddSubject, setShowAddSubject] = useState<boolean>(false);
@@ -112,6 +115,7 @@ function Dashboard({ user, onLogout }: { user: User; onLogout: () => void }) {
   const [editDuration, setEditDuration] = useState<number>(60);
   const [editDate, setEditDate] = useState<string>('');
   const [editNotes, setEditNotes] = useState<string>('');
+  const [editTags, setEditTags] = useState<string>('');
 
   // Deleting State & Toast Feedback
   const [deletingId, setDeletingId] = useState<number | null>(null);
@@ -193,12 +197,14 @@ function Dashboard({ user, onLogout }: { user: User; onLogout: () => void }) {
         durationMinutes: durationMins,
         sessionDate: localDate(),
         notes: `Stopwatch session (${durationMins} min)`,
+        tags: timerTags.split(','),
       });
       if (!res.success) {
         showToast(res.error || 'Failed to save session');
         return;
       }
 
+      setTimerTags('');
       setTimerStatus('IDLE');
       setElapsedSeconds(0);
       showToast('Study session saved!');
@@ -221,6 +227,7 @@ function Dashboard({ user, onLogout }: { user: User; onLogout: () => void }) {
         durationMinutes: Number(manualDuration),
         sessionDate: manualDate,
         notes: manualNotes,
+        tags: manualTags.split(','),
       });
       if (!res.success) {
         showToast(res.error || 'Failed to log session');
@@ -228,6 +235,7 @@ function Dashboard({ user, onLogout }: { user: User; onLogout: () => void }) {
       }
 
       setManualNotes('');
+      setManualTags('');
       showToast('Study session logged successfully!');
       loadUserData();
       setChartKey(Date.now());
@@ -265,6 +273,7 @@ function Dashboard({ user, onLogout }: { user: User; onLogout: () => void }) {
     setEditDuration(sess.duration_minutes);
     setEditDate(sess.session_date);
     setEditNotes(sess.notes || '');
+    setEditTags((sess.tags || []).join(', '));
   };
 
   const cancelEditing = () => {
@@ -279,6 +288,7 @@ function Dashboard({ user, onLogout }: { user: User; onLogout: () => void }) {
         durationMinutes: Number(editDuration),
         sessionDate: editDate,
         notes: editNotes,
+        tags: editTags.split(','),
       });
 
       if (res.success) {
@@ -520,6 +530,16 @@ function Dashboard({ user, onLogout }: { user: User; onLogout: () => void }) {
                   </select>
                 </div>
 
+                <div className="w-full max-w-sm mb-6 -mt-3">
+                  <input
+                    type="text"
+                    placeholder="Tags (comma separated, optional)"
+                    value={timerTags}
+                    onChange={(e) => setTimerTags(e.target.value)}
+                    className="w-full py-2 px-3 rounded-xl bg-zinc-900 border border-white/10 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+
                 {/* Circular Stopwatch Display */}
                 <div className="relative w-56 h-56 rounded-full bg-zinc-950 border border-white/10 flex flex-col items-center justify-center p-6 shadow-2xl my-2">
                   <div
@@ -668,6 +688,19 @@ function Dashboard({ user, onLogout }: { user: User; onLogout: () => void }) {
                     />
                   </div>
 
+                  <div>
+                    <label className="block text-[11px] font-semibold text-zinc-400 mb-1">
+                      Tags (comma separated)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. revision, lab"
+                      value={manualTags}
+                      onChange={(e) => setManualTags(e.target.value)}
+                      className="w-full py-2 px-3 rounded-xl bg-zinc-900 border border-white/10 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+
                   <button
                     type="submit"
                     className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-bold text-white shadow-md transition flex items-center justify-center gap-1.5"
@@ -761,6 +794,13 @@ function Dashboard({ user, onLogout }: { user: User; onLogout: () => void }) {
                                   className="w-full py-1 px-2 rounded bg-zinc-800 border border-indigo-500/50 text-xs text-white focus:outline-none"
                                   placeholder="Notes..."
                                 />
+                                <input
+                                  type="text"
+                                  value={editTags}
+                                  onChange={(e) => setEditTags(e.target.value)}
+                                  className="w-full mt-1 py-1 px-2 rounded bg-zinc-800 border border-indigo-500/50 text-xs text-white focus:outline-none"
+                                  placeholder="Tags, comma separated"
+                                />
                               </td>
                               <td className="py-2.5 px-3 text-right">
                                 <div className="flex items-center gap-1.5 justify-end">
@@ -798,7 +838,18 @@ function Dashboard({ user, onLogout }: { user: User; onLogout: () => void }) {
                               {sess.duration_minutes} min ({Math.round(sess.duration_minutes / 60 * 10) / 10}h)
                             </td>
                             <td className="py-2.5 px-3 font-mono text-zinc-400">{sess.session_date}</td>
-                            <td className="py-2.5 px-3 text-zinc-400 truncate max-w-xs">{sess.notes || '—'}</td>
+                            <td className="py-2.5 px-3 text-zinc-400 max-w-xs">
+                              <div className="truncate">{sess.notes || '—'}</div>
+                              {sess.tags && sess.tags.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {sess.tags.map((t) => (
+                                    <span key={t} className="px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-300 border border-purple-500/20 text-[10px]">
+                                      {t}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </td>
                             <td className="py-2.5 px-3 text-right">
                               {deletingId === sess.id ? (
                                 <div className="flex items-center gap-1.5 justify-end">
@@ -881,7 +932,7 @@ function Dashboard({ user, onLogout }: { user: User; onLogout: () => void }) {
                 <div className="p-4 border-b border-white/5 bg-zinc-900/60 flex items-center justify-between">
                   <div>
                     <h3 className="text-xs font-bold text-white">1. Categorical Bar Chart</h3>
-                    <p className="text-[10px] text-zinc-400">Subject Hours vs Goal</p>
+                    <p className="text-[10px] text-zinc-400">Last 7 Days vs Weekly Goal</p>
                   </div>
                   <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-blue-500/10 text-blue-400 border border-blue-500/20">
                     plt.bar()
@@ -898,7 +949,7 @@ function Dashboard({ user, onLogout }: { user: User; onLogout: () => void }) {
                     <span>DV Concept: Discrete Comparison</span>
                   </div>
                   <p className="text-zinc-400 text-[10px] leading-relaxed">
-                    Uses categorical x-axis with height proportional to aggregate hours. Displays an horizontal benchmark quota line and direct numerical annotations.
+                    Uses categorical x-axis with height proportional to aggregate hours. Shows the last 7 days per subject with a dashed marker at each weekly goal, plus direct value annotations.
                   </p>
                 </div>
               </div>
@@ -957,6 +1008,8 @@ function Dashboard({ user, onLogout }: { user: User; onLogout: () => void }) {
                 </div>
               </div>
             </div>
+
+            <Insights refreshKey={chartKey} onGoalSaved={handleRefreshCharts} />
 
             {/* SQL Relational View Query Display */}
             <div className="bg-[#121216] p-6 rounded-2xl border border-white/10 shadow-xl space-y-4">

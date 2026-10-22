@@ -5,7 +5,7 @@ Technologies: Python 3, Pandas, NumPy, Matplotlib
 Curriculum: 5th Semester CS - Data Visualization & DBMS Lab
 
 3 Core Visualizations Demonstrated:
-1. Categorical Comparison: Bar Chart (Subject Study Volume vs Quota)
+1. Categorical Comparison: Bar Chart (Last 7 days vs weekly goal per subject)
 2. Composition / Proportion: Donut Chart (Time Allocation Across Subjects)
 3. Time-Series Trend: Line Plot (Daily Study Volume & Cumulative Momentum)
 =============================================================================
@@ -81,19 +81,22 @@ def save_empty_chart(user_id: int, name: str, title: str):
 
 
 # =============================================================================
-# CHART 1: Categorical Comparison (Bar Chart)
-# DBMS Concept: Aggregating by Subject (INNER JOIN, SUM, GROUP BY)
-# DV Concept: Discrete bars, categorical comparison against a benchmark line
+# CHART 1: Categorical Comparison (Bar Chart) - this week's hours vs weekly goal
+# DBMS Concept: LEFT JOIN of subjects to sessions and goals, GROUP BY, SUM
+# DV Concept: Discrete bars, per-category benchmark markers
 # =============================================================================
 def generate_subject_hours_chart(user_id: int):
     query = """
-        SELECT 
-            s.name as subject_name,
+        SELECT
+            s.name AS subject_name,
             s.color_code,
-            ROUND(SUM(ss.duration_minutes) / 60.0, 2) as total_hours
-        FROM study_sessions ss
-        JOIN subjects s ON ss.subject_id = s.id
-        WHERE ss.user_id = %s
+            ROUND(COALESCE(SUM(ss.duration_minutes), 0) / 60.0, 2) AS total_hours,
+            ROUND(MAX(g.weekly_target_minutes) / 60.0, 2) AS goal_hours
+        FROM subjects s
+        LEFT JOIN study_sessions ss
+               ON ss.subject_id = s.id AND ss.session_date > DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+        LEFT JOIN goals g ON g.subject_id = s.id AND g.user_id = s.user_id
+        WHERE s.user_id = %s
         GROUP BY s.id, s.name, s.color_code
         ORDER BY total_hours DESC;
     """
@@ -110,28 +113,35 @@ def generate_subject_hours_chart(user_id: int):
             conn.close()
 
     df = pd.DataFrame(rows)
+    title = 'Last 7 Days vs Weekly Goal (Bar Chart)'
     if df.empty:
-        return save_empty_chart(user_id, 'daily_study', 'Subject Study Hours (Bar Chart)')
+        return save_empty_chart(user_id, 'daily_study', title)
     df['total_hours'] = df['total_hours'].astype(float)
+    df['goal_hours'] = pd.to_numeric(df['goal_hours'], errors='coerce')
 
     fig, ax = plt.subplots(figsize=(6.5, 3.8), dpi=120)
     fig.patch.set_facecolor('#121216')
     ax.set_facecolor('#121216')
 
-    colors = df['color_code'].tolist()
-    bars = ax.bar(df['subject_name'], df['total_hours'], color=colors, width=0.45, edgecolor='#27272a', linewidth=1)
+    x = np.arange(len(df))
+    bars = ax.bar(x, df['total_hours'], color=df['color_code'].tolist(), width=0.45, edgecolor='#27272a', linewidth=1)
 
-    # DV Benchmark target reference line
-    target_hours = 5.0
-    ax.axhline(y=target_hours, color='#10b981', linestyle='--', linewidth=1.2, label=f'Target ({target_hours}h/subject)')
+    # Per-subject goal markers (only where a goal exists)
+    has_goal = df['goal_hours'].notna()
+    for i in x[has_goal.to_numpy()]:
+        ax.hlines(df['goal_hours'][i], i - 0.32, i + 0.32, color='#10b981', linestyle='--', linewidth=1.6)
+    if has_goal.any():
+        ax.plot([], [], color='#10b981', linestyle='--', label='Weekly goal')
+        ax.legend(loc='upper right', frameon=False, fontsize=8)
 
-    ax.set_title('Subject Study Hours (Bar Chart)', fontsize=11, fontweight='bold', color='#f4f4f5', pad=12)
-    ax.set_ylabel('Total Hours', fontsize=9, color='#a1a1aa')
+    ax.set_xticks(x)
+    ax.set_xticklabels(df['subject_name'], rotation=15, ha='right')
+    ax.set_title(title, fontsize=11, fontweight='bold', color='#f4f4f5', pad=12)
+    ax.set_ylabel('Hours', fontsize=9, color='#a1a1aa')
     ax.tick_params(colors='#a1a1aa', labelsize=8)
-    plt.xticks(rotation=15, ha='right')
     ax.grid(axis='y', linestyle=':', alpha=0.2, color='#71717a')
-    ax.set_ylim(0, max(df['total_hours'].max() + 1.5, 6.0))
-    ax.legend(loc='upper right', frameon=False, fontsize=8)
+    top = max(df['total_hours'].max(), df['goal_hours'].max() if has_goal.any() else 0)
+    ax.set_ylim(0, max(top + 1.5, 2.0))
 
     # Direct Data Value Annotations
     for bar in bars:
