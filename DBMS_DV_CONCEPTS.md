@@ -154,12 +154,9 @@ The Python analytics module (`analytics/visualize.py`) demonstrates the foundati
 - **DV Principle**: Part-to-whole ratio analysis.
 - **Implementation**: `SubjectDonut` renders an SVG donut in the browser from the `v_subject_study_summary` rows. Hovering a slice or legend row shows that subject's hours and share of the total. Slice colors are the subject `color_code` values stored in MySQL.
 
-### 4.3 Longitudinal Progression: Line Chart (`user_<id>_study_trend.png`)
-- **DV Principle**: Time-series momentum and trend analysis.
-- **Implementation**:
-  - X-axis: Chronological study dates.
-  - Y-axis: Cumulative hours (`df['daily_hours'].cumsum()`).
-  - Shaded area (`fill_between`): Highlights total study volume accumulation over the semester.
+### 4.3 Longitudinal Progression: Live Line Chart (React)
+- **DV Principle**: Time-series trend analysis.
+- **Implementation**: `StudyActivity` plots minutes studied per day for the last 14 days (`GROUP BY session_date`, gaps filled with zero) as an interactive SVG line with area fill, hover crosshair/tooltip, and average/peak stats. It re-queries every 10 seconds.
 
 ---
 

@@ -10,7 +10,7 @@ const ANALYTICS_DIR = path.resolve(__dirname, '../../analytics');
 const PYTHON_PATH = path.join(ANALYTICS_DIR, 'venv/bin/python');
 const VISUALIZER_PATH = path.join(ANALYTICS_DIR, 'visualize.py');
 const OUTPUT_DIR = path.join(ANALYTICS_DIR, 'output');
-const CHART_NAMES = ['daily_study', 'study_trend'];
+const CHART_NAMES = ['daily_study'];
 
 export const apiRouter = Router();
 apiRouter.use(requireAuth);
@@ -192,6 +192,23 @@ apiRouter.get('/summary', async (req: AuthRequest, res) => {
   try {
     const [rows] = await pool.query(
       'SELECT * FROM v_subject_study_summary WHERE user_id = ? ORDER BY total_minutes DESC',
+      [req.userId]
+    );
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    fail(res, err);
+  }
+});
+
+// Minutes studied per day over the last 14 days
+apiRouter.get('/daily', async (req: AuthRequest, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT DATE_FORMAT(session_date, '%Y-%m-%d') AS session_date, SUM(duration_minutes) AS total_minutes
+       FROM study_sessions
+       WHERE user_id = ? AND session_date >= DATE_SUB(CURDATE(), INTERVAL 13 DAY)
+       GROUP BY session_date
+       ORDER BY session_date`,
       [req.userId]
     );
     res.json({ success: true, data: rows });

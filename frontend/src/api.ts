@@ -54,6 +54,7 @@ export const api = {
 
   // Analytics
   getSummary: () => request<{ success: boolean; data: SubjectSummary[] }>('/summary'),
+  getDaily: () => request<{ success: boolean; data: { session_date: string; total_minutes: number }[] }>('/daily'),
   getTagSummary: () => request<{ success: boolean; data: TagSummary[] }>('/tag-summary'),
   getGoals: () => request<{ success: boolean; data: Goal[] }>('/goals'),
   setGoal: (subjectId: number, weeklyTargetMinutes: number) =>
