@@ -8,10 +8,12 @@ export default {
   theme: {
     extend: {
       colors: {
-        background: '#09090b',
+        background: 'hsl(var(--background))',
+        foreground: 'hsl(var(--foreground))',
         surface: '#121217',
-        card: '#18181b',
-        border: '#27272a',
+        card: { DEFAULT: 'hsl(var(--card))', foreground: 'hsl(var(--card-foreground))' },
+        muted: { DEFAULT: 'hsl(var(--muted))', foreground: 'hsl(var(--muted-foreground))' },
+        border: 'hsl(var(--border))',
         primary: {
           DEFAULT: '#38bdf8',
           hover: '#0ea5e9',

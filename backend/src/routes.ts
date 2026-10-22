@@ -10,7 +10,7 @@ const ANALYTICS_DIR = path.resolve(__dirname, '../../analytics');
 const PYTHON_PATH = path.join(ANALYTICS_DIR, 'venv/bin/python');
 const VISUALIZER_PATH = path.join(ANALYTICS_DIR, 'visualize.py');
 const OUTPUT_DIR = path.join(ANALYTICS_DIR, 'output');
-const CHART_NAMES = ['daily_study', 'subject_distribution', 'study_trend'];
+const CHART_NAMES = ['daily_study', 'study_trend'];
 
 export const apiRouter = Router();
 apiRouter.use(requireAuth);

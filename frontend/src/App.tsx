@@ -13,7 +13,6 @@ import {
   Layers,
   Code2,
   CheckCircle2,
-  PieChart as PieIcon,
   TrendingUp,
   Sliders,
   Pencil,
@@ -23,6 +22,7 @@ import {
 import { api, getToken, setToken, UNAUTHORIZED_EVENT } from './api';
 import { Auth } from './Auth';
 import { Insights } from './Insights';
+import { SubjectDonut } from './components/SubjectDonut';
 import { NumberTicker } from './components/ui/number-ticker';
 import { ShimmerButton } from './components/ui/shimmer-button';
 import { SpotlightCard } from './components/ui/spotlight-card';
@@ -911,8 +911,8 @@ function Dashboard({ user, onLogout }: { user: User; onLogout: () => void }) {
               </button>
             </div>
 
-            {/* 3 Core Matplotlib Figures Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Matplotlib figures */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Figure 1: Bar Chart */}
               <div className="bg-[#121216] rounded-2xl border border-white/10 overflow-hidden shadow-xl flex flex-col">
                 <div className="p-4 border-b border-white/5 bg-zinc-900/60 flex items-center justify-between">
@@ -940,38 +940,11 @@ function Dashboard({ user, onLogout }: { user: User; onLogout: () => void }) {
                 </div>
               </div>
 
-              {/* Figure 2: Donut / Pie Chart */}
-              <div className="bg-[#121216] rounded-2xl border border-white/10 overflow-hidden shadow-xl flex flex-col">
-                <div className="p-4 border-b border-white/5 bg-zinc-900/60 flex items-center justify-between">
-                  <div>
-                    <h3 className="text-xs font-bold text-white">2. Proportional Donut Chart</h3>
-                    <p className="text-[10px] text-zinc-400">Time Breakdown %</p>
-                  </div>
-                  <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-purple-500/10 text-purple-400 border border-purple-500/20">
-                    plt.pie()
-                  </span>
-                </div>
-
-                <div className="p-3 bg-[#121216] min-h-[220px] flex items-center justify-center">
-                  <ChartImage name="subject_distribution" refreshKey={chartKey} alt="Subject Time Distribution Donut Chart" />
-                </div>
-
-                <div className="p-4 border-t border-white/5 bg-zinc-950/40 text-[11px] space-y-2">
-                  <div className="text-zinc-300 font-semibold flex items-center gap-1.5">
-                    <PieIcon className="w-3.5 h-3.5 text-purple-400" />
-                    <span>DV Concept: Part-to-Whole Ratio</span>
-                  </div>
-                  <p className="text-zinc-400 text-[10px] leading-relaxed">
-                    Circular proportion visual with central cutout (donut). Slices are sized by percentage distribution using custom color mapping matching database records.
-                  </p>
-                </div>
-              </div>
-
               {/* Figure 3: Line Chart */}
               <div className="bg-[#121216] rounded-2xl border border-white/10 overflow-hidden shadow-xl flex flex-col">
                 <div className="p-4 border-b border-white/5 bg-zinc-900/60 flex items-center justify-between">
                   <div>
-                    <h3 className="text-xs font-bold text-white">3. Longitudinal Trend Line</h3>
+                    <h3 className="text-xs font-bold text-white">2. Longitudinal Trend Line</h3>
                     <p className="text-[10px] text-zinc-400">Cumulative Momentum</p>
                   </div>
                   <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
@@ -994,6 +967,8 @@ function Dashboard({ user, onLogout }: { user: User; onLogout: () => void }) {
                 </div>
               </div>
             </div>
+
+            <SubjectDonut summary={summary} />
 
             <Insights refreshKey={chartKey} onGoalSaved={handleRefreshCharts} />
 

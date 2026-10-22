@@ -24,7 +24,9 @@ The database was reduced from an over-engineered 9-table schema to a **clean, 3N
 | :--- | :--- | :--- | :--- |
 | `users` | `id` (AUTO_INCREMENT) | None | `username UNIQUE`, `email UNIQUE`, `password_hash` (bcrypt), Atomic fields (1NF) |
 | `subjects` | `id` (AUTO_INCREMENT) | `user_id` &rarr; `users(id)` | `ON DELETE CASCADE`, Composite Unique `(user_id, name)` |
-| `study_sessions` | `id` (AUTO_INCREMENT) | `user_id` &rarr; `users(id)`, `subject_id` &rarr; `subjects(id)` | `ON DELETE CASCADE`, Domain Chec### 1.3 Extension Tables
+| `study_sessions` | `id` (AUTO_INCREMENT) | `user_id` &rarr; `users(id)`, `subject_id` &rarr; `subjects(id)` | `ON DELETE CASCADE`, Domain Check `duration_minutes > 0` |
+
+### 1.3 Extension Tables
 
 | Table | Purpose | Concepts |
 | :--- | :--- | :--- |
@@ -36,10 +38,6 @@ Views: `v_subject_study_summary` (hours per subject) and `v_tag_summary` (hours 
 Triggers: `tr_validate_session` (BEFORE INSERT), `tr_audit_session_update`, `tr_audit_session_delete`.
 
 The bar chart (`user_<id>_daily_study.png`) now compares the last 7 days per subject against each subject's weekly goal (`LEFT JOIN` of subjects, sessions and goals).
-
----
-
-k `duration_minutes > 0` |
 
 ---
 
@@ -142,7 +140,7 @@ DELIMITER ;
 
 ## 4. Minimal Data Visualization (DV) Concepts
 
-The Python analytics module (`analytics/visualize.py`) demonstrates the 3 foundational visualization types required by the 5th-semester DV syllabus.
+The Python analytics module (`analytics/visualize.py`) demonstrates the foundational visualization types required by the 5th-semester DV syllabus.
 
 ### 4.1 Categorical Comparison: Bar Chart (`user_<id>_daily_study.png`)
 - **DV Principle**: Discrete categorical comparison.
@@ -152,12 +150,9 @@ The Python analytics module (`analytics/visualize.py`) demonstrates the 3 founda
   - Benchmark line (`axhline`): Target study quota line (5.0h) for immediate visual thresholding.
   - Data Annotations: Exact hours printed directly above each bar to eliminate visual estimation error.
 
-### 4.2 Proportional Composition: Donut Chart (`user_<id>_subject_distribution.png`)
+### 4.2 Proportional Composition: Interactive Donut (React)
 - **DV Principle**: Part-to-whole ratio analysis.
-- **Implementation**:
-  - Pie with `width=0.42` wedge cut-out (Donut aesthetic).
-  - Percentages formatted via `autopct='%1.1f%%'`.
-  - Semantic Color Encoding: Slice colors correspond directly to the subject hex colors stored in MySQL (`color_code`).
+- **Implementation**: `SubjectDonut` renders an SVG donut in the browser from the `v_subject_study_summary` rows. Hovering a slice or legend row shows that subject's hours and share of the total. Slice colors are the subject `color_code` values stored in MySQL.
 
 ### 4.3 Longitudinal Progression: Line Chart (`user_<id>_study_trend.png`)
 - **DV Principle**: Time-series momentum and trend analysis.

@@ -4,10 +4,9 @@ StudySync - Minimalist Data Visualization (DV) Engine
 Technologies: Python 3, Pandas, NumPy, Matplotlib
 Curriculum: 5th Semester CS - Data Visualization & DBMS Lab
 
-3 Core Visualizations Demonstrated:
+2 Core Visualizations Demonstrated:
 1. Categorical Comparison: Bar Chart (Last 7 days vs weekly goal per subject)
-2. Composition / Proportion: Donut Chart (Time Allocation Across Subjects)
-3. Time-Series Trend: Line Plot (Daily Study Volume & Cumulative Momentum)
+2. Time-Series Trend: Line Plot (Daily Study Volume & Cumulative Momentum)
 =============================================================================
 """
 
@@ -159,72 +158,7 @@ def generate_subject_hours_chart(user_id: int):
 
 
 # =============================================================================
-# CHART 2: Proportional Composition (Donut / Pie Chart)
-# DBMS Concept: Relative proportions computed via Relational Aggregation
-# DV Concept: Part-to-whole relationship, percentage slices, color semantics
-# =============================================================================
-def generate_subject_distribution_chart(user_id: int):
-    query = """
-        SELECT 
-            s.name as subject_name,
-            s.color_code,
-            SUM(ss.duration_minutes) as minutes
-        FROM study_sessions ss
-        JOIN subjects s ON ss.subject_id = s.id
-        WHERE ss.user_id = %s
-        GROUP BY s.id, s.name, s.color_code
-        ORDER BY minutes DESC;
-    """
-    rows = []
-    conn = get_db_connection()
-    if conn:
-        try:
-            with conn.cursor() as cur:
-                cur.execute(query, (user_id,))
-                rows = cur.fetchall()
-        except Exception:
-            pass
-        finally:
-            conn.close()
-
-    df = pd.DataFrame(rows)
-    if df.empty:
-        return save_empty_chart(user_id, 'subject_distribution', 'Study Time Distribution (Donut Chart)')
-    df['minutes'] = df['minutes'].astype(float)
-
-    fig, ax = plt.subplots(figsize=(6.0, 3.8), dpi=120)
-    fig.patch.set_facecolor('#121216')
-    ax.set_facecolor('#121216')
-
-    colors = df['color_code'].tolist()
-    wedges, texts, autotexts = ax.pie(
-        df['minutes'],
-        labels=df['subject_name'],
-        autopct='%1.1f%%',
-        startangle=140,
-        colors=colors,
-        pctdistance=0.75,
-        wedgeprops=dict(width=0.42, edgecolor='#121216', linewidth=2)
-    )
-
-    for t in texts:
-        t.set_color('#d4d4d8')
-        t.set_fontsize(8)
-    for at in autotexts:
-        at.set_color('#ffffff')
-        at.set_fontsize(7.5)
-        at.set_fontweight('bold')
-
-    ax.set_title('Study Time Distribution (Donut Chart)', fontsize=11, fontweight='bold', color='#f4f4f5', pad=12)
-    plt.tight_layout()
-    output_path = os.path.join(OUTPUT_DIR, f'user_{user_id}_subject_distribution.png')
-    plt.savefig(output_path, facecolor=fig.get_facecolor(), edgecolor='none')
-    plt.close(fig)
-    return output_path
-
-
-# =============================================================================
-# CHART 3: Longitudinal Trend (Line Chart)
+# CHART 2: Longitudinal Trend (Line Chart)
 # DBMS Concept: Chronological aggregation (GROUP BY session_date, ORDER BY ASC)
 # DV Concept: Time-series curve, rate of change, cumulative area visualization
 # =============================================================================
@@ -284,14 +218,12 @@ def generate_study_trend_chart(user_id: int):
 
 
 def generate_all_charts(user_id: int = 1):
-    """Generate all 3 minimal DV visualizations."""
+    """Generate the 2 minimal DV visualizations."""
     p1 = generate_subject_hours_chart(user_id)
-    p2 = generate_subject_distribution_chart(user_id)
-    p3 = generate_study_trend_chart(user_id)
+    p2 = generate_study_trend_chart(user_id)
     print(f"Generated DV charts successfully for user {user_id}:")
     print(f" 1. Bar Chart: {p1}")
-    print(f" 2. Donut Chart: {p2}")
-    print(f" 3. Line Trend: {p3}")
+    print(f" 2. Line Trend: {p2}")
 
 
 if __name__ == '__main__':
