@@ -66,6 +66,20 @@ def get_db_connection():
         return None
 
 
+def save_empty_chart(user_id: int, name: str, title: str):
+    """Placeholder figure for users with no sessions yet."""
+    fig, ax = plt.subplots(figsize=(6.5, 3.8), dpi=120)
+    fig.patch.set_facecolor('#121216')
+    ax.set_facecolor('#121216')
+    ax.set_title(title, fontsize=11, fontweight='bold', color='#f4f4f5', pad=12)
+    ax.text(0.5, 0.5, 'No study sessions yet', ha='center', va='center', color='#a1a1aa', fontsize=10, transform=ax.transAxes)
+    ax.axis('off')
+    output_path = os.path.join(OUTPUT_DIR, f'user_{user_id}_{name}.png')
+    plt.savefig(output_path, facecolor=fig.get_facecolor(), edgecolor='none')
+    plt.close(fig)
+    return output_path
+
+
 # =============================================================================
 # CHART 1: Categorical Comparison (Bar Chart)
 # DBMS Concept: Aggregating by Subject (INNER JOIN, SUM, GROUP BY)
@@ -97,14 +111,8 @@ def generate_subject_hours_chart(user_id: int):
 
     df = pd.DataFrame(rows)
     if df.empty:
-        # Realistic Fallback Dataset
-        df = pd.DataFrame({
-            'subject_name': ['DBMS', 'Data Visualization', 'Networks', 'Operating Systems', 'Web Tech'],
-            'color_code': ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ec4899'],
-            'total_hours': [8.5, 6.2, 4.0, 3.5, 2.8]
-        })
-    else:
-        df['total_hours'] = df['total_hours'].astype(float)
+        return save_empty_chart(user_id, 'daily_study', 'Subject Study Hours (Bar Chart)')
+    df['total_hours'] = df['total_hours'].astype(float)
 
     fig, ax = plt.subplots(figsize=(6.5, 3.8), dpi=120)
     fig.patch.set_facecolor('#121216')
@@ -134,7 +142,7 @@ def generate_subject_hours_chart(user_id: int):
                     ha='center', va='bottom', fontsize=8, color='#f4f4f5', fontweight='bold')
 
     plt.tight_layout()
-    output_path = os.path.join(OUTPUT_DIR, 'daily_study.png')
+    output_path = os.path.join(OUTPUT_DIR, f'user_{user_id}_daily_study.png')
     plt.savefig(output_path, facecolor=fig.get_facecolor(), edgecolor='none')
     plt.close(fig)
     return output_path
@@ -171,13 +179,8 @@ def generate_subject_distribution_chart(user_id: int):
 
     df = pd.DataFrame(rows)
     if df.empty:
-        df = pd.DataFrame({
-            'subject_name': ['DBMS', 'Data Visualization', 'Networks', 'Operating Systems', 'Web Tech'],
-            'color_code': ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ec4899'],
-            'minutes': [510, 372, 240, 210, 168]
-        })
-    else:
-        df['minutes'] = df['minutes'].astype(float)
+        return save_empty_chart(user_id, 'subject_distribution', 'Study Time Distribution (Donut Chart)')
+    df['minutes'] = df['minutes'].astype(float)
 
     fig, ax = plt.subplots(figsize=(6.0, 3.8), dpi=120)
     fig.patch.set_facecolor('#121216')
@@ -204,7 +207,7 @@ def generate_subject_distribution_chart(user_id: int):
 
     ax.set_title('Study Time Distribution (Donut Chart)', fontsize=11, fontweight='bold', color='#f4f4f5', pad=12)
     plt.tight_layout()
-    output_path = os.path.join(OUTPUT_DIR, 'subject_distribution.png')
+    output_path = os.path.join(OUTPUT_DIR, f'user_{user_id}_subject_distribution.png')
     plt.savefig(output_path, facecolor=fig.get_facecolor(), edgecolor='none')
     plt.close(fig)
     return output_path
@@ -238,17 +241,12 @@ def generate_study_trend_chart(user_id: int):
             conn.close()
 
     df = pd.DataFrame(rows)
-    if df.empty or len(df) < 2:
-        dates = pd.date_range(end=pd.Timestamp.now(), periods=7)
-        df = pd.DataFrame({
-            'session_date': dates.strftime('%b %d'),
-            'daily_hours': [2.5, 3.0, 1.8, 4.2, 3.5, 2.0, 4.0]
-        })
-    else:
-        df['daily_hours'] = df['daily_hours'].astype(float)
-        df['session_date'] = df['session_date'].apply(
-            lambda d: d.strftime('%b %d') if hasattr(d, 'strftime') else str(d)
-        )
+    if df.empty:
+        return save_empty_chart(user_id, 'study_trend', 'Cumulative Study Momentum (Line Chart)')
+    df['daily_hours'] = df['daily_hours'].astype(float)
+    df['session_date'] = df['session_date'].apply(
+        lambda d: d.strftime('%b %d') if hasattr(d, 'strftime') else str(d)
+    )
 
     # Compute Cumulative Study Hours (DV cumulative progression concept)
     df['cumulative_hours'] = df['daily_hours'].cumsum()
@@ -269,7 +267,7 @@ def generate_study_trend_chart(user_id: int):
     ax.legend(loc='upper left', frameon=False, fontsize=8)
 
     plt.tight_layout()
-    output_path = os.path.join(OUTPUT_DIR, 'study_trend.png')
+    output_path = os.path.join(OUTPUT_DIR, f'user_{user_id}_study_trend.png')
     plt.savefig(output_path, facecolor=fig.get_facecolor(), edgecolor='none')
     plt.close(fig)
     return output_path

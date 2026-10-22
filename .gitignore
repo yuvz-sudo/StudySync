@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+analytics/venv/
+analytics/output/
+__pycache__/
+.mypy_cache/
+.DS_Store

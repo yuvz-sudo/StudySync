@@ -1,100 +1,66 @@
-// =============================================================================
-// StudySync - Minimalist Frontend API Client
-// Directly maps to 3NF MySQL Endpoints & DV Engine
-// =============================================================================
-
 import { User, Subject, StudySession, SubjectSummary } from './types';
 
 const API_BASE = '/api';
+const TOKEN_KEY = 'studysync_token';
+
+export const getToken = () => localStorage.getItem(TOKEN_KEY);
+export const setToken = (t: string | null) =>
+  t ? localStorage.setItem(TOKEN_KEY, t) : localStorage.removeItem(TOKEN_KEY);
+
+// Fired on any 401 so the app can drop back to the login screen
+export const UNAUTHORIZED_EVENT = 'studysync:unauthorized';
+
+async function request<T = any>(path: string, method = 'GET', body?: unknown): Promise<T> {
+  const token = getToken();
+  const res = await fetch(`${API_BASE}${path}`, {
+    method,
+    headers: {
+      ...(body ? { 'Content-Type': 'application/json' } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (res.status === 401 && token) window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
+  return res.json();
+}
+
+type SessionInput = {
+  subjectId: number;
+  durationMinutes: number;
+  sessionDate: string;
+  notes?: string;
+};
 
 export const api = {
-  // DBMS Diagnostics
-  getHealth: async () => {
-    const res = await fetch(`${API_BASE}/health`);
-    return res.json();
-  },
+  // Auth
+  login: (username: string, password: string) =>
+    request<{ success: boolean; token?: string; user?: User; error?: string }>('/auth/login', 'POST', { username, password }),
+  register: (username: string, email: string, password: string) =>
+    request<{ success: boolean; token?: string; user?: User; error?: string }>('/auth/register', 'POST', { username, email, password }),
+  me: () => request<{ success: boolean; user?: User }>('/auth/me'),
 
-  // 1. Users (SELECT id, username, email FROM users)
-  getUsers: async (): Promise<{ success: boolean; data: User[] }> => {
-    const res = await fetch(`${API_BASE}/users`);
-    return res.json();
-  },
+  // Subjects
+  getSubjects: () => request<{ success: boolean; data: Subject[] }>('/subjects'),
+  addSubject: (name: string, colorCode: string) =>
+    request<{ success: boolean; error?: string }>('/subjects', 'POST', { name, colorCode }),
 
-  // 2. Subjects (SELECT FROM subjects WHERE user_id = ?)
-  getSubjects: async (userId: number): Promise<{ success: boolean; data: Subject[] }> => {
-    const res = await fetch(`${API_BASE}/subjects/${userId}`);
-    return res.json();
-  },
+  // Study sessions
+  getSessions: () => request<{ success: boolean; data: StudySession[] }>('/sessions'),
+  addSession: (data: SessionInput) => request<{ success: boolean; error?: string }>('/sessions', 'POST', data),
+  updateSession: (id: number, data: SessionInput) =>
+    request<{ success: boolean; error?: string }>(`/sessions/${id}`, 'PUT', data),
+  deleteSession: (id: number) => request<{ success: boolean; error?: string }>(`/sessions/${id}`, 'DELETE'),
 
-  // Insert Subject (INSERT INTO subjects)
-  addSubject: async (userId: number, name: string, colorCode: string) => {
-    const res = await fetch(`${API_BASE}/subjects`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, name, colorCode }),
+  // Analytics
+  getSummary: () => request<{ success: boolean; data: SubjectSummary[] }>('/summary'),
+  refreshCharts: () => request('/charts/refresh', 'POST'),
+
+  // Charts are per-user and need the auth header, so fetch as a blob URL
+  getChartUrl: async (name: string): Promise<string | null> => {
+    const token = getToken();
+    const res = await fetch(`${API_BASE}/charts/${name}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
-    return res.json();
-  },
-
-  // 3. Study Sessions (INNER JOIN ss JOIN subjects s)
-  getSessions: async (userId: number): Promise<{ success: boolean; data: StudySession[] }> => {
-    const res = await fetch(`${API_BASE}/sessions/${userId}`);
-    return res.json();
-  },
-
-  // Insert Study Session (INSERT INTO study_sessions)
-  addSession: async (data: {
-    userId: number;
-    subjectId: number;
-    durationMinutes: number;
-    sessionDate: string;
-    notes?: string;
-  }) => {
-    const res = await fetch(`${API_BASE}/sessions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    return res.json();
-  },
-
-  // Update Study Session (UPDATE study_sessions SET ...)
-  updateSession: async (
-    sessionId: number,
-    data: {
-      subjectId: number;
-      durationMinutes: number;
-      sessionDate: string;
-      notes?: string;
-    }
-  ) => {
-    const res = await fetch(`${API_BASE}/sessions/${sessionId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    return res.json();
-  },
-
-  // Delete Study Session (DELETE FROM study_sessions WHERE id = ?)
-  deleteSession: async (sessionId: number) => {
-    const res = await fetch(`${API_BASE}/sessions/${sessionId}`, {
-      method: 'DELETE',
-    });
-    return res.json();
-  },
-
-  // 4. Relational View: v_subject_study_summary (SELECT * FROM v_subject_study_summary)
-  getSummary: async (userId: number): Promise<{ success: boolean; data: SubjectSummary[] }> => {
-    const res = await fetch(`${API_BASE}/summary/${userId}`);
-    return res.json();
-  },
-
-  // 5. Data Visualization: Trigger Python Matplotlib Engine
-  refreshCharts: async (userId: number) => {
-    const res = await fetch(`${API_BASE}/charts/refresh/${userId}`, {
-      method: 'POST',
-    });
-    return res.json();
+    return res.ok ? URL.createObjectURL(await res.blob()) : null;
   },
 };

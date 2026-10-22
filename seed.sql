@@ -1,12 +1,12 @@
 -- ============================================================================
--- StudySync Seed Data (Academic Sample Dataset for Single Student: Yuvraj)
+-- StudySync Seed Data (Academic Sample Dataset for demo user)
 -- 5th Semester DBMS demonstration & Data Visualization plotting
 -- ============================================================================
 
--- 1. Insert Single Student
-INSERT INTO users (id, username, email) VALUES
-(1, 'yuvraj', 'yuvraj@studysync.edu')
-ON DUPLICATE KEY UPDATE username = VALUES(username);
+-- 1. Demo user (login: demo / demo1234)
+USE studysync;
+INSERT INTO users (id, username, email, password_hash) VALUES
+(1, 'demo', 'demo@studysync.edu', '$2a$10$ydGDRMlEcwH/jHITMylcnuhGceuULaUMMpkCTPrMWtbA2Cfp/nMiK');
 
 -- 2. Insert 5th Sem CS Subjects
 INSERT INTO subjects (id, user_id, name, color_code) VALUES
@@ -14,8 +14,7 @@ INSERT INTO subjects (id, user_id, name, color_code) VALUES
 (2, 1, 'Data Visualization', '#8B5CF6'),
 (3, 1, 'Computer Networks', '#10B981'),
 (4, 1, 'Operating Systems', '#F59E0B'),
-(5, 1, 'Web Technologies', '#EC4899')
-ON DUPLICATE KEY UPDATE name = VALUES(name);
+(5, 1, 'Web Technologies', '#EC4899');
 
 -- 3. Insert Study Sessions (Spread across recent days for time-series & bar charts)
 INSERT INTO study_sessions (id, user_id, subject_id, duration_minutes, session_date, notes) VALUES
@@ -32,5 +31,4 @@ INSERT INTO study_sessions (id, user_id, subject_id, duration_minutes, session_d
 (11, 1, 1, 120, DATE_SUB(CURDATE(), INTERVAL 1 DAY), 'Indexing and Query optimization'),
 (12, 1, 4, 75,  DATE_SUB(CURDATE(), INTERVAL 1 DAY), 'Deadlock detection and Banker algorithm'),
 (13, 1, 1, 150, CURDATE(), 'Viva preparation & Schema documentation'),
-(14, 1, 2, 120, CURDATE(), 'Generated final charts for presentation')
-ON DUPLICATE KEY UPDATE duration_minutes = VALUES(duration_minutes);
+(14, 1, 2, 120, CURDATE(), 'Generated final charts for presentation');

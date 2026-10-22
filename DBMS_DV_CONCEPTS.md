@@ -22,7 +22,7 @@ The database was reduced from an over-engineered 9-table schema to a **clean, 3N
 
 | Table Name | Primary Key | Foreign Keys | Key Constraints & Normalization |
 | :--- | :--- | :--- | :--- |
-| `users` | `id` (AUTO_INCREMENT) | None | `username UNIQUE`, `email UNIQUE`, Atomic fields (1NF) |
+| `users` | `id` (AUTO_INCREMENT) | None | `username UNIQUE`, `email UNIQUE`, `password_hash` (bcrypt), Atomic fields (1NF) |
 | `subjects` | `id` (AUTO_INCREMENT) | `user_id` &rarr; `users(id)` | `ON DELETE CASCADE`, Composite Unique `(user_id, name)` |
 | `study_sessions` | `id` (AUTO_INCREMENT) | `user_id` &rarr; `users(id)`, `subject_id` &rarr; `subjects(id)` | `ON DELETE CASCADE`, Domain Check `duration_minutes > 0` |
 
@@ -107,11 +107,11 @@ LEFT JOIN study_sessions ss ON s.id = ss.subject_id
 GROUP BY u.id, u.username, s.id, s.name, s.color_code;
 ```
 
-### 3.4 Database TRIGGER (`tr_validate_session_duration`)
+### 3.4 Database TRIGGER (`tr_validate_session`)
 Demonstrates active server-side constraint enforcement before data entry:
 ```sql
 DELIMITER //
-CREATE TRIGGER tr_validate_session_duration
+CREATE TRIGGER tr_validate_session
 BEFORE INSERT ON study_sessions
 FOR EACH ROW
 BEGIN
@@ -129,7 +129,7 @@ DELIMITER ;
 
 The Python analytics module (`analytics/visualize.py`) demonstrates the 3 foundational visualization types required by the 5th-semester DV syllabus.
 
-### 4.1 Categorical Comparison: Bar Chart (`daily_study.png`)
+### 4.1 Categorical Comparison: Bar Chart (`user_<id>_daily_study.png`)
 - **DV Principle**: Discrete categorical comparison.
 - **Implementation**:
   - X-axis: Subject names (categorical).
@@ -137,14 +137,14 @@ The Python analytics module (`analytics/visualize.py`) demonstrates the 3 founda
   - Benchmark line (`axhline`): Target study quota line (5.0h) for immediate visual thresholding.
   - Data Annotations: Exact hours printed directly above each bar to eliminate visual estimation error.
 
-### 4.2 Proportional Composition: Donut Chart (`subject_distribution.png`)
+### 4.2 Proportional Composition: Donut Chart (`user_<id>_subject_distribution.png`)
 - **DV Principle**: Part-to-whole ratio analysis.
 - **Implementation**:
   - Pie with `width=0.42` wedge cut-out (Donut aesthetic).
   - Percentages formatted via `autopct='%1.1f%%'`.
   - Semantic Color Encoding: Slice colors correspond directly to the subject hex colors stored in MySQL (`color_code`).
 
-### 4.3 Longitudinal Progression: Line Chart (`study_trend.png`)
+### 4.3 Longitudinal Progression: Line Chart (`user_<id>_study_trend.png`)
 - **DV Principle**: Time-series momentum and trend analysis.
 - **Implementation**:
   - X-axis: Chronological study dates.
@@ -174,26 +174,4 @@ The Python analytics module (`analytics/visualize.py`) demonstrates the 3 founda
 
 ## 6. How to Run the Project
 
-1. **Database Setup (Optional - app includes auto-fallback)**:
-   ```bash
-   mysql -u root -p < schema.sql
-   mysql -u root -p studysync < seed.sql
-   ```
-
-2. **Run Backend (Port 5001)**:
-   ```bash
-   cd backend
-   npm run dev
-   ```
-
-3. **Run Frontend (Port 5173)**:
-   ```bash
-   cd frontend
-   npm run dev
-   ```
-
-4. **Run Python DV Visualizer independently**:
-   ```bash
-   cd analytics
-   ./venv/bin/python visualize.py --user 1
-   ```
+See `README.md`.

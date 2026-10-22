@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import confetti from 'canvas-confetti';
 import {
   Play,
   Pause,
@@ -19,33 +18,86 @@ import {
   Sliders,
   Pencil,
   Check,
+  LogOut,
 } from 'lucide-react';
-import { api } from './api';
-import { Subject, StudySession, SubjectSummary } from './types';
+import { api, getToken, setToken, UNAUTHORIZED_EVENT } from './api';
+import { Auth } from './Auth';
+import { Subject, StudySession, SubjectSummary, User } from './types';
 
-// Single Student Profile for 5th Sem Project
-const student = { id: 1, username: 'yuvraj', email: 'yuvraj@studysync.edu' };
+// Charts are per-user and need the auth header, so they are fetched as blobs
+function ChartImage({ name, refreshKey, alt }: { name: string; refreshKey: number; alt: string }) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let active = true;
+    let created: string | null = null;
+    api.getChartUrl(name).then((u) => {
+      created = u;
+      if (active) setUrl(u);
+      else if (u) URL.revokeObjectURL(u);
+    });
+    return () => {
+      active = false;
+      if (created) URL.revokeObjectURL(created);
+    };
+  }, [name, refreshKey]);
+  if (!url) return <span className="text-xs text-zinc-500">Chart not available yet</span>;
+  return <img src={url} alt={alt} className="w-full h-auto object-contain rounded-lg" />;
+}
+
+const localDate = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
 
 export function App() {
+  const [user, setUser] = useState<User | null>(null);
+  const [checking, setChecking] = useState<boolean>(!!getToken());
+
+  useEffect(() => {
+    if (getToken()) {
+      api.me().then((r) => setUser(r.success && r.user ? r.user : null)).catch(() => {}).finally(() => setChecking(false));
+    }
+    const onUnauthorized = () => {
+      setToken(null);
+      setUser(null);
+    };
+    window.addEventListener(UNAUTHORIZED_EVENT, onUnauthorized);
+    return () => window.removeEventListener(UNAUTHORIZED_EVENT, onUnauthorized);
+  }, []);
+
+  if (checking) return <div className="min-h-screen bg-[#09090b]" />;
+  if (!user) return <Auth onAuthed={setUser} />;
+  return (
+    <Dashboard
+      user={user}
+      onLogout={() => {
+        setToken(null);
+        setUser(null);
+      }}
+    />
+  );
+}
+
+function Dashboard({ user, onLogout }: { user: User; onLogout: () => void }) {
   // Navigation Pages: 'tracker' | 'analytics'
   const [activeTab, setActiveTab] = useState<'tracker' | 'analytics'>('tracker');
 
-  // Data States (Single User)
+  // Data States
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [selectedSubjectId, setSelectedSubjectId] = useState<number>(0);
   const [sessions, setSessions] = useState<StudySession[]>([]);
   const [summary, setSummary] = useState<SubjectSummary[]>([]);
-  const [healthStatus, setHealthStatus] = useState<any>(null);
 
   // Stopwatch Timer State
   const [timerStatus, setTimerStatus] = useState<'IDLE' | 'ACTIVE' | 'PAUSED'>('IDLE');
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
   const timerRef = useRef<any>(null);
+  const baseSecondsRef = useRef<number>(0);
 
   // Manual Session Entry Form
   const [manualDuration, setManualDuration] = useState<number>(60);
   const [manualDate, setManualDate] = useState<string>(
-    new Date().toISOString().split('T')[0]
+    localDate()
   );
   const [manualNotes, setManualNotes] = useState<string>('');
 
@@ -76,16 +128,18 @@ export function App() {
 
   // Initial Load: Fetch Health & Load Single Student Data
   useEffect(() => {
-    loadHealth();
-    loadUserData(student.id);
+    loadUserData();
   }, []);
 
   // Stopwatch Interval
   useEffect(() => {
     if (timerStatus === 'ACTIVE') {
+      // Derive elapsed time from timestamps so background-tab throttling can't skew it
+      const startedAt = Date.now();
+      baseSecondsRef.current = elapsedSeconds;
       timerRef.current = setInterval(() => {
-        setElapsedSeconds((prev) => prev + 1);
-      }, 1000);
+        setElapsedSeconds(baseSecondsRef.current + Math.floor((Date.now() - startedAt) / 1000));
+      }, 250);
     } else {
       if (timerRef.current) clearInterval(timerRef.current);
     }
@@ -95,21 +149,12 @@ export function App() {
   }, [timerStatus]);
 
   // Data Fetching Functions
-  const loadHealth = async () => {
-    try {
-      const res = await api.getHealth();
-      setHealthStatus(res);
-    } catch {
-      setHealthStatus({ mode: 'Academic Mock Mode', databaseConnected: false });
-    }
-  };
-
-  const loadUserData = async (userId: number = student.id) => {
+  const loadUserData = async () => {
     try {
       const [subRes, sessRes, sumRes] = await Promise.all([
-        api.getSubjects(userId),
-        api.getSessions(userId),
-        api.getSummary(userId),
+        api.getSubjects(),
+        api.getSessions(),
+        api.getSummary(),
       ]);
 
       if (subRes.success) {
@@ -126,7 +171,7 @@ export function App() {
       }
       setChartKey(Date.now());
     } catch (err) {
-      console.error('Error loading student data:', err);
+      console.error('Error loading data:', err);
     }
   };
 
@@ -143,19 +188,21 @@ export function App() {
     if (!selectedSubjectId) return;
     const durationMins = Math.max(1, Math.round(elapsedSeconds / 60));
     try {
-      await api.addSession({
-        userId: student.id,
+      const res = await api.addSession({
         subjectId: selectedSubjectId,
         durationMinutes: durationMins,
-        sessionDate: new Date().toISOString().split('T')[0],
+        sessionDate: localDate(),
         notes: `Stopwatch session (${durationMins} min)`,
       });
+      if (!res.success) {
+        showToast(res.error || 'Failed to save session');
+        return;
+      }
 
-      confetti({ particleCount: 60, spread: 70, origin: { y: 0.7 } });
       setTimerStatus('IDLE');
       setElapsedSeconds(0);
       showToast('Study session saved!');
-      loadUserData(student.id);
+      loadUserData();
       setChartKey(Date.now());
     } catch (err) {
       console.error('Error saving session:', err);
@@ -169,18 +216,20 @@ export function App() {
     if (!selectedSubjectId || manualDuration <= 0) return;
 
     try {
-      await api.addSession({
-        userId: student.id,
+      const res = await api.addSession({
         subjectId: selectedSubjectId,
         durationMinutes: Number(manualDuration),
         sessionDate: manualDate,
         notes: manualNotes,
       });
+      if (!res.success) {
+        showToast(res.error || 'Failed to log session');
+        return;
+      }
 
-      confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 } });
       setManualNotes('');
       showToast('Study session logged successfully!');
-      loadUserData(student.id);
+      loadUserData();
       setChartKey(Date.now());
     } catch (err) {
       console.error('Failed to log manual session:', err);
@@ -194,11 +243,15 @@ export function App() {
     if (!newSubName.trim()) return;
 
     try {
-      await api.addSubject(student.id, newSubName.trim(), newSubColor);
+      const res = await api.addSubject(newSubName.trim(), newSubColor);
+      if (!res.success) {
+        showToast(res.error || 'Failed to add subject');
+        return;
+      }
       setNewSubName('');
       setShowAddSubject(false);
       showToast(`Subject "${newSubName.trim()}" added!`);
-      loadUserData(student.id);
+      loadUserData();
     } catch (err) {
       console.error('Failed to add subject:', err);
       showToast('Failed to add subject');
@@ -231,7 +284,7 @@ export function App() {
       if (res.success) {
         showToast('Study log updated (DML UPDATE)!');
         setEditingSessionId(null);
-        loadUserData(student.id);
+        loadUserData();
         setChartKey(Date.now());
       } else {
         showToast('Update failed: ' + (res.error || 'Server error'));
@@ -250,16 +303,16 @@ export function App() {
       const res = await api.deleteSession(id);
       if (res.success) {
         showToast('Study session deleted (DML DELETE)');
-        loadUserData(student.id);
+        loadUserData();
         setChartKey(Date.now());
       } else {
         showToast('Delete failed: ' + (res.error || 'Server error'));
-        loadUserData(student.id);
+        loadUserData();
       }
     } catch (err) {
       console.error('Failed to delete session:', err);
       showToast('Error deleting session');
-      loadUserData(student.id);
+      loadUserData();
     }
   };
 
@@ -267,7 +320,7 @@ export function App() {
   const handleRefreshCharts = async () => {
     setIsRefreshingCharts(true);
     try {
-      await api.refreshCharts(student.id);
+      await api.refreshCharts();
       setChartKey(Date.now());
     } catch (err) {
       console.error('Failed to refresh charts:', err);
@@ -309,29 +362,20 @@ export function App() {
           </div>
         </div>
 
-        {/* Database Status Indicator & Single Student Badge */}
         <div className="flex items-center gap-3">
-          {healthStatus && (
-            <div className="hidden md:flex items-center gap-1.5 px-3 py-1 rounded-lg bg-zinc-900 border border-white/10 text-xs text-zinc-300">
-              <span
-                className={`w-2 h-2 rounded-full ${
-                  healthStatus.databaseConnected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'
-                }`}
-              />
-              <span className="font-mono text-[11px]">{healthStatus.mode}</span>
-            </div>
-          )}
-
-          {/* Single Student Profile Badge */}
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-zinc-900 border border-white/10 text-xs">
             <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-cyan-500 to-indigo-600 flex items-center justify-center text-[10px] font-bold text-white">
-              Y
+              {user.username[0].toUpperCase()}
             </div>
-            <div className="flex items-center gap-1.5">
-              <span className="font-bold text-white">Yuvraj</span>
-              <span className="text-[10px] text-zinc-500">(@yuvraj)</span>
-            </div>
+            <span className="font-bold text-white">{user.username}</span>
           </div>
+          <button
+            onClick={onLogout}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs text-zinc-400 hover:text-white hover:bg-white/5 transition"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            <span>Logout</span>
+          </button>
         </div>
       </header>
 
@@ -845,11 +889,7 @@ export function App() {
                 </div>
 
                 <div className="p-3 bg-[#121216] min-h-[220px] flex items-center justify-center">
-                  <img
-                    src={`/charts/daily_study.png?t=${chartKey}`}
-                    alt="Subject Study Hours Bar Chart"
-                    className="w-full h-auto object-contain rounded-lg"
-                  />
+                  <ChartImage name="daily_study" refreshKey={chartKey} alt="Subject Study Hours Bar Chart" />
                 </div>
 
                 <div className="p-4 border-t border-white/5 bg-zinc-950/40 text-[11px] space-y-2">
@@ -876,11 +916,7 @@ export function App() {
                 </div>
 
                 <div className="p-3 bg-[#121216] min-h-[220px] flex items-center justify-center">
-                  <img
-                    src={`/charts/subject_distribution.png?t=${chartKey}`}
-                    alt="Subject Time Distribution Donut Chart"
-                    className="w-full h-auto object-contain rounded-lg"
-                  />
+                  <ChartImage name="subject_distribution" refreshKey={chartKey} alt="Subject Time Distribution Donut Chart" />
                 </div>
 
                 <div className="p-4 border-t border-white/5 bg-zinc-950/40 text-[11px] space-y-2">
@@ -907,11 +943,7 @@ export function App() {
                 </div>
 
                 <div className="p-3 bg-[#121216] min-h-[220px] flex items-center justify-center">
-                  <img
-                    src={`/charts/study_trend.png?t=${chartKey}`}
-                    alt="Cumulative Study Trend Line Chart"
-                    className="w-full h-auto object-contain rounded-lg"
-                  />
+                  <ChartImage name="study_trend" refreshKey={chartKey} alt="Cumulative Study Trend Line Chart" />
                 </div>
 
                 <div className="p-4 border-t border-white/5 bg-zinc-950/40 text-[11px] space-y-2">
@@ -935,7 +967,7 @@ export function App() {
                     <span>Live Database View: v_subject_study_summary</span>
                   </h3>
                   <p className="text-[11px] text-zinc-400">
-                    Output of <code>SELECT * FROM v_subject_study_summary WHERE user_id = {student.id}</code>
+                    Output of <code>SELECT * FROM v_subject_study_summary WHERE user_id = {user.id}</code>
                   </p>
                 </div>
                 <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
