@@ -23,6 +23,11 @@ import {
 import { api, getToken, setToken, UNAUTHORIZED_EVENT } from './api';
 import { Auth } from './Auth';
 import { Insights } from './Insights';
+import { NumberTicker } from './components/ui/number-ticker';
+import { ShimmerButton } from './components/ui/shimmer-button';
+import { SpotlightCard } from './components/ui/spotlight-card';
+import { TubelightTabs } from './components/ui/tubelight-tabs';
+import { ProgressRing } from './components/ui/progress-ring';
 import { Subject, StudySession, SubjectSummary, User } from './types';
 
 // Charts are per-user and need the auth header, so they are fetched as blobs
@@ -391,30 +396,15 @@ function Dashboard({ user, onLogout }: { user: User; onLogout: () => void }) {
 
       {/* Main Pages Navigation */}
       <div className="border-b border-white/5 bg-[#0f0f13] px-4 sm:px-8">
-        <div className="max-w-6xl mx-auto flex items-center gap-2 py-2.5">
-          <button
-            onClick={() => setActiveTab('tracker')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
-              activeTab === 'tracker'
-                ? 'bg-indigo-600 text-white shadow-md'
-                : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/5'
-            }`}
-          >
-            <Calendar className="w-4 h-4" />
-            <span>Study Tracker</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('analytics')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
-              activeTab === 'analytics'
-                ? 'bg-indigo-600 text-white shadow-md'
-                : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/5'
-            }`}
-          >
-            <BarChart3 className="w-4 h-4" />
-            <span>Analytics</span>
-          </button>
+        <div className="max-w-6xl mx-auto flex items-center py-3">
+          <TubelightTabs
+            tabs={[
+              { id: 'tracker', label: 'Study Tracker', icon: Calendar },
+              { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+            ]}
+            active={activeTab}
+            onChange={setActiveTab}
+          />
         </div>
       </div>
 
@@ -427,35 +417,35 @@ function Dashboard({ user, onLogout }: { user: User; onLogout: () => void }) {
           <div className="space-y-8">
             {/* Top Quick Stats Strip */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="bg-[#121216] p-4 rounded-xl border border-white/5 flex items-center justify-between">
+              <SpotlightCard className="p-4" contentClassName="flex items-center justify-between">
                 <div>
                   <span className="text-xs text-zinc-400 font-medium">Logged Study Time</span>
-                  <div className="text-2xl font-black text-white mt-1">{totalUserHours}h</div>
+                  <div className="text-2xl font-black text-white mt-1"><NumberTicker value={Number(totalUserHours)} decimalPlaces={1} className="text-white" />h</div>
                 </div>
                 <div className="w-10 h-10 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
                   <TrendingUp className="w-5 h-5" />
                 </div>
-              </div>
+              </SpotlightCard>
 
-              <div className="bg-[#121216] p-4 rounded-xl border border-white/5 flex items-center justify-between">
+              <SpotlightCard className="p-4" contentClassName="flex items-center justify-between">
                 <div>
                   <span className="text-xs text-zinc-400 font-medium">Total Subjects</span>
-                  <div className="text-2xl font-black text-white mt-1">{subjects.length}</div>
+                  <div className="text-2xl font-black text-white mt-1"><NumberTicker value={subjects.length} className="text-white" /></div>
                 </div>
                 <div className="w-10 h-10 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
                   <Layers className="w-5 h-5" />
                 </div>
-              </div>
+              </SpotlightCard>
 
-              <div className="bg-[#121216] p-4 rounded-xl border border-white/5 flex items-center justify-between">
+              <SpotlightCard className="p-4" contentClassName="flex items-center justify-between">
                 <div>
                   <span className="text-xs text-zinc-400 font-medium">Logged Sessions</span>
-                  <div className="text-2xl font-black text-white mt-1">{sessions.length}</div>
+                  <div className="text-2xl font-black text-white mt-1"><NumberTicker value={sessions.length} className="text-white" /></div>
                 </div>
                 <div className="w-10 h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
                   <CheckCircle2 className="w-5 h-5" />
                 </div>
-              </div>
+              </SpotlightCard>
             </div>
 
             {/* Split Grid: Live Stopwatch (Left) & Quick Manual Logger (Right) */}
@@ -542,14 +532,10 @@ function Dashboard({ user, onLogout }: { user: User; onLogout: () => void }) {
 
                 {/* Circular Stopwatch Display */}
                 <div className="relative w-56 h-56 rounded-full bg-zinc-950 border border-white/10 flex flex-col items-center justify-center p-6 shadow-2xl my-2">
-                  <div
-                    className={`absolute inset-2 rounded-full border border-dashed transition-all duration-700 ${
-                      timerStatus === 'ACTIVE'
-                        ? 'border-indigo-500 animate-[spin_40s_linear_infinite]'
-                        : timerStatus === 'PAUSED'
-                        ? 'border-amber-500'
-                        : 'border-zinc-800'
-                    }`}
+                  <ProgressRing
+                    className="absolute inset-0 w-full h-full"
+                    percent={timerStatus === 'IDLE' ? 0 : ((elapsedSeconds % 60) / 60) * 100}
+                    color={timerStatus === 'PAUSED' ? '#f59e0b' : '#6366f1'}
                   />
 
                   <span
@@ -576,14 +562,14 @@ function Dashboard({ user, onLogout }: { user: User; onLogout: () => void }) {
                 {/* Stopwatch Action Buttons */}
                 <div className="flex items-center gap-3 mt-6">
                   {timerStatus === 'IDLE' ? (
-                    <button
+                    <ShimmerButton
                       onClick={handleStartTimer}
                       disabled={subjects.length === 0}
-                      className="flex items-center gap-2 px-8 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-600/30 transition transform hover:scale-105 active:scale-95 disabled:opacity-50"
+                      className="gap-2 px-8 text-xs font-bold shadow-lg shadow-emerald-600/30"
                     >
                       <Play className="w-4 h-4 fill-white" />
                       <span>Start Session</span>
-                    </button>
+                    </ShimmerButton>
                   ) : (
                     <>
                       {timerStatus === 'ACTIVE' ? (

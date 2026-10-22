@@ -26,6 +26,12 @@ export default {
       fontFamily: {
         sans: ['Plus Jakarta Sans', 'Inter', 'sans-serif'],
       },
+      keyframes: {
+        'spin-around': { '0%': { transform: 'rotate(0deg)' }, '100%': { transform: 'rotate(360deg)' } },
+      },
+      animation: {
+        'spin-around': 'spin-around var(--speed, 3s) linear infinite',
+      },
       boxShadow: {
         'glow-primary': '0 0 25px -5px rgba(56, 189, 248, 0.3)',
         'glow-emerald': '0 0 25px -5px rgba(16, 185, 129, 0.3)',

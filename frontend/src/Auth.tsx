@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { BookOpen } from 'lucide-react';
+import { BorderBeam } from './components/ui/border-beam';
+import { ShimmerButton } from './components/ui/shimmer-button';
 import { api, setToken } from './api';
 import { User } from './types';
 
@@ -37,8 +39,9 @@ export function Auth({ onAuthed }: { onAuthed: (user: User) => void }) {
   };
 
   return (
-    <div className="min-h-screen bg-[#09090b] text-zinc-100 flex items-center justify-center px-4">
-      <form onSubmit={submit} className="w-full max-w-sm bg-[#121216] border border-white/10 rounded-2xl p-6 space-y-4 shadow-xl">
+    <div className="min-h-screen bg-[#09090b] text-zinc-100 flex items-center justify-center px-4 [background-image:radial-gradient(60%_50%_at_50%_0%,rgba(99,102,241,0.18),transparent)]">
+      <form onSubmit={submit} className="relative w-full max-w-sm bg-[#121216] border border-white/10 rounded-2xl p-6 space-y-4 shadow-xl">
+        <BorderBeam />
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-cyan-500 via-indigo-500 to-purple-600 flex items-center justify-center">
             <BookOpen className="w-5 h-5 text-white" />
@@ -57,9 +60,9 @@ export function Auth({ onAuthed }: { onAuthed: (user: User) => void }) {
 
         {error && <p className="text-xs text-rose-400">{error}</p>}
 
-        <button type="submit" disabled={busy} className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-sm font-bold text-white transition disabled:opacity-50">
+        <ShimmerButton type="submit" disabled={busy} background="#4f46e5" className="w-full text-sm font-bold">
           {mode === 'login' ? 'Sign in' : 'Create account'}
-        </button>
+        </ShimmerButton>
 
         <button
           type="button"
