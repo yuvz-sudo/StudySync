@@ -1,0 +1,21 @@
+{
+  "name": "studysync",
+  "version": "1.0.0",
+  "description": "Per-user study dashboard: login, a stopwatch that records study sessions, and analytics charts.\r A small demonstration of DBMS (MySQL, 3NF, view, trigger) and Data Visualisation (Pandas + Matplotlib) concepts.\r See `DBMS_DV_CONCEPTS.md` for the concepts and viva notes.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yuvz-sudo/StudySync.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/yuvz-sudo/StudySync/issues"
+  },
+  "homepage": "https://github.com/yuvz-sudo/StudySync#readme"
+}
