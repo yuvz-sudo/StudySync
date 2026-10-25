@@ -1,3 +1,4 @@
+// @author Weekly Goals  Insights Module
 import { useEffect, useState } from 'react';
 import { Target, Tags, History } from 'lucide-react';
 import { api } from './api';

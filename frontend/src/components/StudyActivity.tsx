@@ -1,3 +1,4 @@
+// @author Real-Time Analytics Component
 import { useEffect, useState } from 'react';
 import { Component as RealTimeAnalytics, type DataPoint } from '@/components/ui/real-time-analytics';
 import { api } from '@/api';
