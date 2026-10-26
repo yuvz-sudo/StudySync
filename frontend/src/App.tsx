@@ -5,7 +5,6 @@ import {
   Square,
   BookOpen,
   BarChart3,
-  RefreshCw,
   Plus,
   Trash2,
   Database,
@@ -24,32 +23,13 @@ import { Auth } from './Auth';
 import { Insights } from './Insights';
 import { SubjectDonut } from './components/SubjectDonut';
 import { StudyActivity } from './components/StudyActivity';
+import { WeeklyGoalsChart } from './components/WeeklyGoalsChart';
 import { NumberTicker } from './components/ui/number-ticker';
 import { ShimmerButton } from './components/ui/shimmer-button';
 import { SpotlightCard } from './components/ui/spotlight-card';
 import { TubelightTabs } from './components/ui/tubelight-tabs';
 import { ProgressRing } from './components/ui/progress-ring';
 import { Subject, StudySession, SubjectSummary, User } from './types';
-
-// Charts are per-user and need the auth header, so they are fetched as blobs
-function ChartImage({ name, refreshKey, alt }: { name: string; refreshKey: number; alt: string }) {
-  const [url, setUrl] = useState<string | null>(null);
-  useEffect(() => {
-    let active = true;
-    let created: string | null = null;
-    api.getChartUrl(name).then((u) => {
-      created = u;
-      if (active) setUrl(u);
-      else if (u) URL.revokeObjectURL(u);
-    });
-    return () => {
-      active = false;
-      if (created) URL.revokeObjectURL(created);
-    };
-  }, [name, refreshKey]);
-  if (!url) return <span className="text-xs text-zinc-500">Chart not available yet</span>;
-  return <img src={url} alt={alt} className="w-full h-auto object-contain rounded-lg" />;
-}
 
 const localDate = () => {
   const d = new Date();
@@ -134,7 +114,6 @@ function Dashboard({ user, onLogout }: { user: User; onLogout: () => void }) {
 
   // Charts
   const [chartKey, setChartKey] = useState<number>(Date.now());
-  const [isRefreshingCharts, setIsRefreshingCharts] = useState<boolean>(false);
 
   // Initial Load: Fetch Health & Load Single Student Data
   useEffect(() => {
@@ -329,19 +308,6 @@ function Dashboard({ user, onLogout }: { user: User; onLogout: () => void }) {
       console.error('Failed to delete session:', err);
       showToast('Error deleting session');
       loadUserData();
-    }
-  };
-
-  // Refresh Charts Handler
-  const handleRefreshCharts = async () => {
-    setIsRefreshingCharts(true);
-    try {
-      await api.refreshCharts();
-      setChartKey(Date.now());
-    } catch (err) {
-      console.error('Failed to refresh charts:', err);
-    } finally {
-      setIsRefreshingCharts(false);
     }
   };
 
@@ -898,47 +864,28 @@ function Dashboard({ user, onLogout }: { user: User; onLogout: () => void }) {
                   </h2>
                 </div>
                 <p className="text-xs text-zinc-400 mt-1">
-                  Visual breakdown of study hours, subject allocation, and learning progress.
+                  Live breakdown of study hours, goals, and subject allocation.
                 </p>
               </div>
 
-              <button
-                onClick={handleRefreshCharts}
-                disabled={isRefreshingCharts}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md transition disabled:opacity-50 self-start sm:self-auto"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${isRefreshingCharts ? 'animate-spin' : ''}`} />
-                <span>{isRefreshingCharts ? 'Rendering Figures...' : 'Refresh Analytics'}</span>
-              </button>
             </div>
 
-            {/* Matplotlib figure */}
-            <div className="grid grid-cols-1 gap-6">
-              {/* Figure 1: Bar Chart */}
-              <div className="bg-[#121216] rounded-2xl border border-white/10 overflow-hidden shadow-xl flex flex-col">
-                <div className="p-4 border-b border-white/5 bg-zinc-900/60 flex items-center justify-between">
-                  <div>
-                    <h3 className="text-xs font-bold text-white">1. Categorical Bar Chart</h3>
-                    <p className="text-[10px] text-zinc-400">Last 7 Days vs Weekly Goal</p>
-                  </div>
-                  <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                    plt.bar()
-                  </span>
+            <div className="bg-[#121216] rounded-2xl border border-white/10 overflow-hidden shadow-xl">
+              <div className="p-4 border-b border-white/5 bg-zinc-900/60">
+                <h3 className="text-sm font-bold text-white">Weekly Progress vs Goals</h3>
+                <p className="text-[11px] text-zinc-400">Hours studied in the last 7 days per subject, with a marker at each weekly goal</p>
+              </div>
+              <div className="p-5">
+                <WeeklyGoalsChart refreshKey={chartKey} />
+              </div>
+              <div className="p-4 border-t border-white/5 bg-zinc-950/40 text-[11px] space-y-2">
+                <div className="text-zinc-300 font-semibold flex items-center gap-1.5">
+                  <Sliders className="w-3.5 h-3.5 text-blue-400" />
+                  <span>DV Concept: Discrete Comparison</span>
                 </div>
-
-                <div className="p-3 bg-[#121216] min-h-[220px] flex items-center justify-center">
-                  <ChartImage name="daily_study" refreshKey={chartKey} alt="Subject Study Hours Bar Chart" />
-                </div>
-
-                <div className="p-4 border-t border-white/5 bg-zinc-950/40 text-[11px] space-y-2">
-                  <div className="text-zinc-300 font-semibold flex items-center gap-1.5">
-                    <Sliders className="w-3.5 h-3.5 text-blue-400" />
-                    <span>DV Concept: Discrete Comparison</span>
-                  </div>
-                  <p className="text-zinc-400 text-[10px] leading-relaxed">
-                    Uses categorical x-axis with height proportional to aggregate hours. Shows the last 7 days per subject with a dashed marker at each weekly goal, plus direct value annotations.
-                  </p>
-                </div>
+                <p className="text-zinc-400 text-[10px] leading-relaxed">
+                  Bar length is proportional to hours studied; the dashed marker shows the target, so progress against a benchmark is visible at a glance. Hover a row for details.
+                </p>
               </div>
             </div>
 
@@ -948,7 +895,7 @@ function Dashboard({ user, onLogout }: { user: User; onLogout: () => void }) {
 
             <SubjectDonut summary={summary} />
 
-            <Insights refreshKey={chartKey} onGoalSaved={handleRefreshCharts} />
+            <Insights refreshKey={chartKey} onGoalSaved={() => setChartKey(Date.now())} />
 
             {/* SQL Relational View Query Display */}
             <div className="bg-[#121216] p-6 rounded-2xl border border-white/10 shadow-xl space-y-4">

@@ -60,14 +60,4 @@ export const api = {
   setGoal: (subjectId: number, weeklyTargetMinutes: number) =>
     request<{ success: boolean; error?: string }>(`/goals/${subjectId}`, 'PUT', { weeklyTargetMinutes }),
   getAudit: () => request<{ success: boolean; data: AuditEntry[] }>('/audit'),
-  refreshCharts: () => request('/charts/refresh', 'POST'),
-
-  // Charts are per-user and need the auth header, so fetch as a blob URL
-  getChartUrl: async (name: string): Promise<string | null> => {
-    const token = getToken();
-    const res = await fetch(`${API_BASE}/charts/${name}`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    });
-    return res.ok ? URL.createObjectURL(await res.blob()) : null;
-  },
 };

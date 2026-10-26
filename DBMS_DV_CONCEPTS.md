@@ -80,7 +80,7 @@ The bar chart (`user_<id>_daily_study.png`) now compares the last 7 days per sub
 - **INSERT**: Adding a new study session:
   ```sql
   INSERT INTO study_sessions (user_id, subject_id, duration_minutes, session_date, notes)
-  VALUES (1, 2, 120, '2026-09-27', 'Matplotlib bar charts and line trends');
+  VALUES (1, 2, 120, '2026-09-27', 'Bar charts and line trends');
   ```
 - **SELECT with Relational INNER JOIN**:
   ```sql
@@ -138,25 +138,24 @@ DELIMITER ;
 
 ---
 
-## 4. Minimal Data Visualization (DV) Concepts
+## 4. Data Visualization (DV) Concepts
 
-The Python analytics module (`analytics/visualize.py`) demonstrates the foundational visualization types required by the 5th-semester DV syllabus.
+All charts are interactive React components fed by SQL queries through the API. They poll the API every 10 seconds, so they update as sessions are logged.
 
-### 4.1 Categorical Comparison: Bar Chart (`user_<id>_daily_study.png`)
-- **DV Principle**: Discrete categorical comparison.
-- **Implementation**:
-  - X-axis: Subject names (categorical).
-  - Y-axis: Aggregated study hours (continuous ratio).
-  - Benchmark line (`axhline`): Target study quota line (5.0h) for immediate visual thresholding.
-  - Data Annotations: Exact hours printed directly above each bar to eliminate visual estimation error.
+### 4.1 Categorical Comparison: Bar Chart (`WeeklyGoalsChart`)
+- **DV Principle**: Discrete categorical comparison against a benchmark.
+- **SQL**: `GET /api/goals` joins `subjects` with `goals` and sums the last 7 days of `study_sessions` (a correlated subquery with `SUM`, `COALESCE`).
+- **Implementation**: one horizontal bar per subject (long names stay readable), bar length proportional to hours, a dashed marker at the weekly goal, and a progress percentage. Hovering a row highlights it.
 
-### 4.2 Proportional Composition: Interactive Donut (React)
+### 4.2 Proportional Composition: Interactive Donut (`SubjectDonut`)
 - **DV Principle**: Part-to-whole ratio analysis.
-- **Implementation**: `SubjectDonut` renders an SVG donut in the browser from the `v_subject_study_summary` rows. Hovering a slice or legend row shows that subject's hours and share of the total. Slice colors are the subject `color_code` values stored in MySQL.
+- **SQL**: rows from the `v_subject_study_summary` view.
+- **Implementation**: SVG donut with animated segments. Hovering a slice or legend row shows that subject's hours and share of the total. Slice colors are the subject `color_code` values stored in MySQL.
 
-### 4.3 Longitudinal Progression: Live Line Chart (React)
+### 4.3 Longitudinal Progression: Live Line Chart (`StudyActivity`)
 - **DV Principle**: Time-series trend analysis.
-- **Implementation**: `StudyActivity` plots minutes studied per day for the last 14 days (`GROUP BY session_date`, gaps filled with zero) as an interactive SVG line with area fill, hover crosshair/tooltip, and average/peak stats. It re-queries every 10 seconds.
+- **SQL**: `GET /api/daily` runs `GROUP BY session_date` over the last 14 days; gaps are filled with zero in the client.
+- **Implementation**: SVG line with area fill, hover crosshair and tooltip, and average/peak/data-point stats.
 
 ---
 
@@ -168,8 +167,8 @@ The Python analytics module (`analytics/visualize.py`) demonstrates the foundati
 **Q2: What is the benefit of using `ON DELETE CASCADE`?**  
 > *"It maintains referential integrity. If a student user is deleted, all their subjects and session logs are automatically purged by the database engine, preventing orphaned foreign key rows."*
 
-**Q3: How does your Python script interact with the database?**  
-> *"It issues direct SQL queries through `PyMySQL`, loads the tabular result set into a `Pandas DataFrame`, performs vector-based aggregations (e.g., `cumsum()`, `groupby`), and generates figures via `Matplotlib`."*
+**Q3: How does the frontend get its chart data?**  
+> *"React calls REST endpoints on the Express backend. Each endpoint runs a parameterised SQL query (joins, `GROUP BY`, `SUM`, or a view) scoped to the logged-in user's id from the JWT, and returns JSON. The charts are SVG/CSS components that render that JSON and re-fetch every 10 seconds."*
 
 **Q4: What is the difference between a View and a Table?**  
 > *"A Table physically stores data on disk. A View is a virtual table defined by a stored SQL query that computes its contents dynamically upon execution, providing data abstraction and security."*

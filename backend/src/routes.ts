@@ -1,29 +1,10 @@
 import { Router, Response } from 'express';
-import path from 'path';
-import fs from 'fs';
-import { execFile } from 'child_process';
 import { PoolConnection } from 'mysql2/promise';
 import { pool } from './db';
 import { requireAuth, AuthRequest } from './auth';
 
-const ANALYTICS_DIR = path.resolve(__dirname, '../../analytics');
-const PYTHON_PATH = path.join(ANALYTICS_DIR, 'venv/bin/python');
-const VISUALIZER_PATH = path.join(ANALYTICS_DIR, 'visualize.py');
-const OUTPUT_DIR = path.join(ANALYTICS_DIR, 'output');
-const CHART_NAMES = ['daily_study'];
-
 export const apiRouter = Router();
 apiRouter.use(requireAuth);
-
-// Regenerate this user's Matplotlib charts
-function renderCharts(userId: number): Promise<void> {
-  return new Promise((resolve) => {
-    execFile(PYTHON_PATH, [VISUALIZER_PATH, '--user', String(userId)], (err, _out, stderr) => {
-      if (err) console.error('Chart generation failed:', stderr || err.message);
-      resolve();
-    });
-  });
-}
 
 const today = () => new Date().toISOString().split('T')[0];
 const fail = (res: Response, err: any) => res.status(500).json({ success: false, error: err.message });
@@ -124,7 +105,6 @@ apiRouter.post('/sessions', async (req: AuthRequest, res) => {
     );
     await setSessionTags(conn, req.userId!, result.insertId, cleanTags(tags));
     await conn.commit();
-    await renderCharts(req.userId!);
     res.json({ success: true, id: result.insertId });
   } catch (err: any) {
     await conn.rollback();
@@ -159,7 +139,6 @@ apiRouter.put('/sessions/:id', async (req: AuthRequest, res) => {
     }
     if (tags !== undefined) await setSessionTags(conn, req.userId!, Number(req.params.id), cleanTags(tags));
     await conn.commit();
-    await renderCharts(req.userId!);
     res.json({ success: true });
   } catch (err) {
     await conn.rollback();
@@ -179,7 +158,6 @@ apiRouter.delete('/sessions/:id', async (req: AuthRequest, res) => {
       res.status(404).json({ success: false, error: 'Session not found' });
       return;
     }
-    await renderCharts(req.userId!);
     res.json({ success: true });
   } catch (err) {
     fail(res, err);
@@ -273,7 +251,6 @@ apiRouter.put('/goals/:subjectId', async (req: AuthRequest, res) => {
         [req.userId, subjectId, target]
       );
     }
-    await renderCharts(req.userId!);
     res.json({ success: true });
   } catch (err) {
     fail(res, err);
@@ -297,24 +274,4 @@ apiRouter.get('/audit', async (req: AuthRequest, res) => {
   } catch (err) {
     fail(res, err);
   }
-});
-
-apiRouter.post('/charts/refresh', async (req: AuthRequest, res) => {
-  await renderCharts(req.userId!);
-  res.json({ success: true });
-});
-
-// Charts are per-user files, so they are served through the authenticated API
-apiRouter.get('/charts/:name', (req: AuthRequest, res) => {
-  if (!CHART_NAMES.includes(req.params.name)) {
-    res.status(404).end();
-    return;
-  }
-  const file = path.join(OUTPUT_DIR, `user_${req.userId}_${req.params.name}.png`);
-  if (!fs.existsSync(file)) {
-    res.status(404).end();
-    return;
-  }
-  res.setHeader('Cache-Control', 'no-store');
-  res.sendFile(file);
 });
