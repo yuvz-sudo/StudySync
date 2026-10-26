@@ -19,7 +19,7 @@ export function SubjectDonut({ summary }: { summary: SubjectSummary[] }) {
   return (
     <Card className="p-6 w-full flex flex-col md:flex-row items-center gap-8 shadow-xl rounded-2xl border-white/10">
       <div className="flex flex-col items-center gap-3">
-        <h3 className="text-sm font-bold text-foreground">Interactive Subject Breakdown</h3>
+        <h3 className="text-sm font-bold text-foreground">Subject Breakdown (all time)</h3>
         {data.length === 0 ? (
           <p className="text-xs text-muted-foreground py-16">No study sessions yet.</p>
         ) : (
@@ -38,7 +38,7 @@ export function SubjectDonut({ summary }: { summary: SubjectSummary[] }) {
                   transition={{ duration: 0.2 }}
                   className="flex flex-col items-center text-center"
                 >
-                  <p className="text-muted-foreground text-xs font-medium truncate max-w-[130px]">{active?.label ?? 'Total study time'}</p>
+                  <p className="text-muted-foreground text-xs font-medium truncate max-w-[130px]">{active?.label ?? 'All-time total'}</p>
                   <p className="text-3xl font-bold text-foreground">{fmt(active?.value ?? total)}</p>
                   {active && <p className="text-sm text-muted-foreground">{Math.round((active.value / total) * 100)}%</p>}
                 </motion.div>
